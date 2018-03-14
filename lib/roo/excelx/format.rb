@@ -53,6 +53,8 @@ module Roo
           :time
         elsif format.include?('%')
           :percentage
+        elsif format == '@'
+          :string
         else
           :float
         end
@@ -60,5 +62,5 @@ module Roo
 
       module_function :to_type
     end
-  end 
+  end
 end
