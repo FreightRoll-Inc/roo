@@ -40,8 +40,9 @@ module Roo
       sheet_options = {}
       sheet_options[:expand_merged_ranges] = (options[:expand_merged_ranges] || false)
       sheet_options[:no_hyperlinks] = (options[:no_hyperlinks] || false)
+      sheet_options[:empty_cell] = (options[:empty_cell] || false)
       shared_options = {}
-        
+
       shared_options[:disable_html_wrapper] = (options[:disable_html_wrapper] || false)
       unless is_stream?(filename_or_stream)
         file_type_check(filename_or_stream, %w[.xlsx .xlsm], 'an Excel 2007', file_warning, packed)
@@ -65,10 +66,10 @@ module Roo
         end
       end.compact
       @sheets = []
-      @sheets_by_name = Hash[@sheet_names.map.with_index do |sheet_name, n|
-        @sheets[n] = Sheet.new(sheet_name, @shared, n, sheet_options)
-        [sheet_name, @sheets[n]]
-      end]
+      @sheets_by_name = {}
+      @sheet_names.each_with_index do |sheet_name, n|
+        @sheets_by_name[sheet_name] = @sheets[n] = Sheet.new(sheet_name, @shared, n, sheet_options)
+      end
 
       if cell_max
         cell_count = ::Roo::Utils.num_cells_in_range(sheet_for(options.delete(:sheet)).dimensions)
@@ -97,7 +98,7 @@ module Roo
     def sheet_for(sheet)
       sheet ||= default_sheet
       validate_sheet!(sheet)
-      @sheets_by_name[sheet]
+      @sheets_by_name[sheet] || @sheets[sheet]
     end
 
     def images(sheet = nil)
@@ -333,7 +334,7 @@ module Roo
 
       wb.extract(path)
       workbook_doc = Roo::Utils.load_xml(path).remove_namespaces!
-      workbook_doc.xpath('//sheet').map { |s| s.attributes['id'].value }
+      workbook_doc.xpath('//sheet').map { |s| s['id'] }
     end
 
     # Internal
@@ -357,17 +358,13 @@ module Roo
 
       wb_rels.extract(path)
       rels_doc = Roo::Utils.load_xml(path).remove_namespaces!
-      worksheet_type = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet'
 
       relationships = rels_doc.xpath('//Relationship').select do |relationship|
-        relationship.attributes['Type'].value == worksheet_type
+        worksheet_types.include? relationship['Type']
       end
 
-      relationships.inject({}) do |hash, relationship|
-        attributes = relationship.attributes
-        id = attributes['Id']
-        hash[id.value] = attributes['Target'].value
-        hash
+      relationships.each_with_object({}) do |relationship, hash|
+        hash[relationship['Id']] = relationship['Target']
       end
     end
 
@@ -456,7 +453,7 @@ module Roo
         when /drawing([0-9]+).xml.rels$/
           # Extracting drawing relationships to make images lists for each sheet
           nr = Regexp.last_match[1].to_i
-          image_rels[nr -1] = "#{@tmpdir}/roo_image_rels#{nr}"
+          image_rels[nr - 1] = "#{@tmpdir}/roo_image_rels#{nr}"
         end
 
         entry.extract(path) if path
@@ -464,7 +461,14 @@ module Roo
     end
 
     def safe_send(object, method, *args)
-      object.send(method, *args) if object && object.respond_to?(method)
+      object.send(method, *args) if object&.respond_to?(method)
+    end
+
+    def worksheet_types
+      [
+        'http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet', # OOXML Transitional
+        'http://purl.oclc.org/ooxml/officeDocument/relationships/worksheet' # OOXML Strict
+      ]
     end
   end
 end

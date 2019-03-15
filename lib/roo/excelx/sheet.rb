@@ -23,7 +23,14 @@ module Roo
       end
 
       def present_cells
-        @present_cells ||= cells.select { |_, cell| cell && !cell.empty? }
+        @present_cells ||= begin
+          warn %{
+[DEPRECATION] present_cells is deprecated. Alternate:
+  with activesupport    => cells[key].presence
+  without activesupport => cells[key]&.presence
+          }
+          cells.select { |_, cell| cell&.presence }
+        end
       end
 
       # Yield each row as array of Excelx::Cell objects
@@ -43,33 +50,33 @@ module Roo
 
       def row(row_number)
         first_column.upto(last_column).map do |col|
-          cells[[row_number, col]]
-        end.map { |cell| cell && cell.value }
+          cells[[row_number, col]]&.value
+        end
       end
 
       def column(col_number)
         first_row.upto(last_row).map do |row|
-          cells[[row, col_number]]
-        end.map { |cell| cell && cell.value }
+          cells[[row, col_number]]&.value
+        end
       end
 
       # returns the number of the first non-empty row
       def first_row
-        @first_row ||= present_cells.keys.map { |row, _| row }.min
+        @first_row ||= first_last_row_col[:first_row]
       end
 
       def last_row
-        @last_row ||= present_cells.keys.map { |row, _| row }.max
+        @last_row ||= first_last_row_col[:last_row]
       end
 
       # returns the number of the first non-empty column
       def first_column
-        @first_column ||= present_cells.keys.map { |_, col| col }.min
+        @first_column ||= first_last_row_col[:first_column]
       end
 
       # returns the number of the last non-empty column
       def last_column
-        @last_column ||= present_cells.keys.map { |_, col| col }.max
+        @last_column ||= first_last_row_col[:last_column]
       end
 
       def excelx_format(key)
@@ -110,6 +117,34 @@ module Roo
         pad = []
         (cell.coordinate.column - 1 - last_column).times { pad << nil }
         pad
+      end
+
+      def first_last_row_col
+        @first_last_row_col ||= begin
+          first_row = last_row = first_col = last_col = nil
+
+          cells.each do |(row, col), cell|
+            next unless cell&.presence
+            first_row ||= row
+            last_row ||= row
+            first_col ||= col
+            last_col ||= col
+
+            if row > last_row
+              last_row = row
+            elsif row < first_row
+              first_row = row
+            end
+
+            if col > last_col
+              last_col = col
+            elsif col < first_col
+              first_col = col
+            end
+          end
+
+          {first_row: first_row, last_row: last_row, first_column: first_col, last_column: last_col}
+        end
       end
     end
   end
