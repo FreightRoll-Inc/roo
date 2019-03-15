@@ -19,5 +19,6 @@ group :local_development do
   gem 'guard-bundler', require: false
   gem 'guard-rubocop', require: false
   gem "rb-readline"
-  gem 'pry'
+  gem 'pry', require: true
+  gem 'pry-byebug', require: true
 end

@@ -36,13 +36,16 @@ module Roo
       # Yield each row as array of Excelx::Cell objects
       # accepts options max_rows (int) (offset by 1 for header),
       # pad_cells (boolean) and offset (int)
+      # skip_hidden (boolean)
       def each_row(options = {}, &block)
         row_count = 0
         options[:offset] ||= 0
+        options[:skip_hidden] ||= false
+
         @sheet.each_row_streaming do |row|
           break if options[:max_rows] && row_count == options[:max_rows] + options[:offset] + 1
           if block_given? && !(options[:offset] && row_count < options[:offset])
-            block.call(cells_for_row_element(row, options))
+            block.call(cells_for_row_element(row, options)) unless options[:skip_hidden] && row_hidden?(row)
           end
           row_count += 1
         end
@@ -145,6 +148,10 @@ module Roo
 
           {first_row: first_row, last_row: last_row, first_column: first_col, last_column: last_col}
         end
+      end
+
+      def row_hidden?(row_xml)
+        row_xml.attributes['hidden'] && row_xml.attributes['hidden'].value == '1'
       end
     end
   end

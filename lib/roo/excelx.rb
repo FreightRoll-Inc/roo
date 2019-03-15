@@ -292,9 +292,10 @@ module Roo
     end
 
     # Yield an array of Excelx::Cell
-    # Takes options for sheet, pad_cells, and max_rows
+    # Takes options for sheet, pad_cells, max_rows, and skip_hidden
     def each_row_streaming(options = {})
       sheet = sheet_for(options.delete(:sheet))
+
       if block_given?
         sheet.each_row(options) { |row| yield row }
       else

@@ -53,6 +53,10 @@ module Roo
         end
       end
 
+      def row_hidden?(row_xml)
+        row_xml.attributes['hidden'] && row_xml.attributes['hidden']['value'] == '1'
+      end
+
       private
 
       def cell_value_type(type, format)

@@ -467,13 +467,13 @@ describe Roo::Excelx do
   # 2007-05-07	10.75	10.75	0	0	Task 1
   # nil
   describe '#each_row_streaming' do
-    let(:path) { 'test/files/simple_spreadsheet.xlsx' }
+    let(:path) { 'test/files/hidden_rows.xlsx' }
 
     let(:expected_rows) do
       [
-          [nil, nil, nil, nil, nil],
-          [nil, nil, nil, nil, nil],
-          ["Date", "Start time", "End time", "Pause", "Sum", "Comment", nil, nil],
+          [nil, nil, nil, nil, nil, nil],
+          [nil, nil, nil, nil, nil, nil],
+          ["Date", "Start time", "End time", "Pause", "Sum", "Comment"],
           [Date.new(2007, 5, 7), 9.25, 10.25, 0.0, 1.0, "Task 1"],
           [Date.new(2007, 5, 7), 10.75, 12.50, 0.0, 1.75, "Task 1"],
           [Date.new(2007, 5, 7), 18.0, 19.0, 0.0, 1.0, "Task 2"],
@@ -484,6 +484,7 @@ describe Roo::Excelx do
           [Date.new(2007, 5, 14), 22.5, 23.0, 0.0, 0.5, "Task 3"],
           [Date.new(2007, 5, 15), 11.75, 12.75, 0.0, 1.0, "Task 3"],
           [Date.new(2007, 5, 7), 10.75, 10.75, 0.0, 0.0, "Task 1"],
+          [Date.new(2007, 5, 7), 9.25, 13.50, 0.0, 4.25, "Hidden Row"],
           [nil]
       ]
     end
@@ -539,6 +540,20 @@ describe Roo::Excelx do
     context 'without block passed' do
       it 'returns an enumerator' do
         expect(subject.each_row_streaming).to be_a(Enumerator)
+      end
+    end
+
+    context 'with skip_hidden option' do
+      let(:offset) { 3 }
+      let(:skip_hidden) { true }
+
+      it 'returns the expected result' do
+        index = 0
+        subject.each_row_streaming(offset: offset, skip_hidden: true) do |row|
+          expect(row.map(&:value)).to eq expected_rows[index + offset]
+          index += 1
+        end
+        expect(index).to eq 10
       end
     end
   end
